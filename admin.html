@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Get Your Dog in a 3D Print — Admin</title>
+<style>
+  :root{
+    --navy:#1b2436;
+    --navy-2:#242f45;
+    --cream:#f6f1e4;
+    --mustard:#e0a63b;
+    --mustard-dark:#c78d24;
+    --line:#3a4560;
+    --ok:#6fbf8b;
+    --err:#e17a6b;
+    font-family:'Nunito',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(224,166,59,0.10), transparent 40%),
+      var(--navy);
+    color:var(--cream);
+    padding:28px 20px 60px;
+  }
+  header{
+    max-width:1100px;
+    margin:0 auto 30px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  h1{
+    font-family:'Fredoka','Nunito',sans-serif;
+    font-size:1.7rem;
+    margin:0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .count{
+    background:var(--navy-2);
+    border:1px solid var(--line);
+    padding:8px 16px;
+    border-radius:999px;
+    font-size:0.9rem;
+    color:var(--mustard);
+    font-weight:700;
+  }
+  .grid{
+    max-width:1100px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+    gap:20px;
+  }
+  .card{
+    background:var(--navy-2);
+    border:1px solid var(--line);
+    border-radius:16px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    animation:fadeIn .35s ease;
+    position:relative;
+  }
+  @keyframes fadeIn{
+    from{opacity:0; transform:translateY(8px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  .card.removing{
+    animation:fadeOut .25s ease forwards;
+  }
+  @keyframes fadeOut{
+    to{opacity:0; transform:scale(0.92);}
+  }
+  .card img{
+    width:100%;
+    aspect-ratio:1/1;
+    object-fit:cover;
+    display:block;
+    background:var(--navy);
+  }
+  .done-btn{
+    position:absolute;
+    top:10px;
+    right:10px;
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    border:none;
+    background:rgba(27,36,54,0.85);
+    color:var(--ok);
+    font-size:1.1rem;
+    font-weight:900;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    backdrop-filter:blur(3px);
+    transition:background .15s, transform .1s;
+  }
+  .done-btn:hover{background:var(--ok); color:var(--navy);}
+  .done-btn:active{transform:scale(0.9);}
+  .card-body{
+    padding:14px 16px 16px;
+  }
+  .card-body .name{
+    font-weight:800;
+    font-size:1.05rem;
+    margin:0 0 4px;
+  }
+  .card-body .time{
+    font-size:0.78rem;
+    color:#98a1bb;
+  }
+  .empty{
+    max-width:1100px;
+    margin:60px auto;
+    text-align:center;
+    color:#98a1bb;
+  }
+  .empty .paw{font-size:2.4rem; display:block; margin-bottom:10px;}
+  .loading{
+    text-align:center;
+    color:#98a1bb;
+    margin-top:60px;
+  }
+
+  /* Lock screen */
+  #lockScreen{
+    position:fixed;
+    inset:0;
+    background:var(--navy);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:10;
+    padding:24px;
+  }
+  .lock-card{
+    width:100%;
+    max-width:340px;
+    background:var(--navy-2);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:32px 28px;
+    text-align:center;
+  }
+  .lock-card .paw{font-size:2rem; display:block; margin-bottom:10px;}
+  .lock-card h2{
+    font-family:'Fredoka','Nunito',sans-serif;
+    margin:0 0 6px;
+    font-size:1.3rem;
+  }
+  .lock-card p.hint{
+    color:#b9c0d4;
+    font-size:0.88rem;
+    margin:0 0 22px;
+  }
+  #pinInput{
+    width:100%;
+    padding:14px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--navy);
+    color:var(--cream);
+    font-size:1.4rem;
+    text-align:center;
+    letter-spacing:0.4em;
+    outline:none;
+    margin-bottom:16px;
+  }
+  #pinInput:focus{border-color:var(--mustard);}
+  #pinSubmit{
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:12px;
+    background:var(--mustard);
+    color:var(--navy);
+    font-weight:800;
+    font-size:1rem;
+    cursor:pointer;
+    font-family:'Fredoka','Nunito',sans-serif;
+  }
+  #pinSubmit:hover{background:var(--mustard-dark);}
+  #pinError{
+    margin-top:12px;
+    color:var(--err);
+    font-size:0.85rem;
+    min-height:1.2em;
+  }
+</style>
+</head>
+<body>
+
+<div id="lockScreen">
+  <div class="lock-card">
+    <span class="paw">🔒</span>
+    <h2 id="lockTitle">Enter PIN</h2>
+    <p class="hint" id="lockHint">This board is locked.</p>
+    <input type="password" inputmode="numeric" id="pinInput" maxlength="12" placeholder="••••">
+    <button id="pinSubmit">Unlock</button>
+    <div id="pinError"></div>
+  </div>
+</div>
+
+<header>
+  <h1>🐾 Get Your Dog in a 3D Print <span style="font-weight:400; opacity:.6; font-size:1rem;">— Admin</span></h1>
+  <div class="count" id="countBadge">0 dogs</div>
+</header>
+
+<div id="loading" class="loading">Loading...</div>
+<div class="grid" id="grid"></div>
+<div class="empty" id="emptyState" style="display:none;">
+  <span class="paw">🐕</span>
+  No dogs submitted yet — waiting for the first one!
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, query, orderBy, onSnapshot,
+    doc, getDoc, setDoc, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDQwvDsndgIaco7NshkPy6pC5Uhk003PHI",
+    authDomain: "get-your-dog-in-a-3d-print.firebaseapp.com",
+    projectId: "get-your-dog-in-a-3d-print",
+    storageBucket: "get-your-dog-in-a-3d-print.firebasestorage.app",
+    messagingSenderId: "794863341378",
+    appId: "1:794863341378:web:aa7aba83a73a14dc9502db"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ---------- Elements ----------
+  const grid = document.getElementById('grid');
+  const loading = document.getElementById('loading');
+  const emptyState = document.getElementById('emptyState');
+  const countBadge = document.getElementById('countBadge');
+
+  const lockScreen = document.getElementById('lockScreen');
+  const lockTitle = document.getElementById('lockTitle');
+  const lockHint = document.getElementById('lockHint');
+  const pinInput = document.getElementById('pinInput');
+  const pinSubmit = document.getElementById('pinSubmit');
+  const pinError = document.getElementById('pinError');
+
+  const PIN_DOC = doc(db, 'config', 'adminPin');
+
+  let mode = 'checking'; // 'create' | 'enter'
+
+  async function initLock(){
+    try {
+      const snap = await getDoc(PIN_DOC);
+      if (snap.exists() && snap.data().pin) {
+        mode = 'enter';
+        lockTitle.textContent = 'Enter PIN';
+        lockHint.textContent = 'This board is locked.';
+      } else {
+        mode = 'create';
+        lockTitle.textContent = 'Create a PIN';
+        lockHint.textContent = "Set a PIN now — you'll use it to get in next time.";
+      }
+    } catch (err) {
+      console.error(err);
+      lockHint.textContent = 'Could not reach Firebase — check your setup.';
+    }
+    pinInput.focus();
+  }
+
+  async function submitPin(){
+    const val = pinInput.value.trim();
+    pinError.textContent = '';
+
+    if (!val || val.length < 4) {
+      pinError.textContent = 'PIN must be at least 4 digits.';
+      return;
+    }
+
+    if (mode === 'create') {
+      try {
+        await setDoc(PIN_DOC, { pin: val });
+        unlock();
+      } catch (err) {
+        console.error(err);
+        pinError.textContent = 'Could not save PIN — check your setup.';
+      }
+      return;
+    }
+
+    // mode === 'enter'
+    try {
+      const snap = await getDoc(PIN_DOC);
+      const storedPin = snap.exists() ? snap.data().pin : null;
+      if (val === storedPin) {
+        unlock();
+      } else {
+        pinError.textContent = 'Wrong PIN, try again.';
+        pinInput.value = '';
+        pinInput.focus();
+      }
+    } catch (err) {
+      console.error(err);
+      pinError.textContent = 'Could not verify PIN — check your setup.';
+    }
+  }
+
+  function unlock(){
+    sessionStorage.setItem('dogAdminUnlocked', '1');
+    lockScreen.style.display = 'none';
+    startBoard();
+  }
+
+  pinSubmit.addEventListener('click', submitPin);
+  pinInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitPin();
+  });
+
+  // ---------- Board ----------
+  let started = false;
+  function startBoard(){
+    if (started) return;
+    started = true;
+
+    const q = query(collection(db, 'dogs'), orderBy('createdAt', 'desc'));
+
+    onSnapshot(q, (snapshot) => {
+      loading.style.display = 'none';
+
+      if (snapshot.empty) {
+        grid.innerHTML = '';
+        emptyState.style.display = 'block';
+        countBadge.textContent = '0 dogs';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      countBadge.textContent = `${snapshot.size} dog${snapshot.size === 1 ? '' : 's'}`;
+
+      grid.innerHTML = '';
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data();
+        const id = docSnap.id;
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `card-${id}`;
+
+        const time = d.createdAt?.toDate
+          ? d.createdAt.toDate().toLocaleString()
+          : 'just now';
+
+        card.innerHTML = `
+          <button class="done-btn" title="Mark done and remove" data-id="${id}">✓</button>
+          <img src="${d.photo}" alt="${escapeHtml(d.name)}">
+          <div class="card-body">
+            <p class="name">${escapeHtml(d.name)}</p>
+            <p class="time">${time}</p>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      // Wire up delete buttons
+      grid.querySelectorAll('.done-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-id');
+          const card = document.getElementById(`card-${id}`);
+          btn.disabled = true;
+          try {
+            if (card) card.classList.add('removing');
+            await deleteDoc(doc(db, 'dogs', id));
+          } catch (err) {
+            console.error(err);
+            btn.disabled = false;
+            if (card) card.classList.remove('removing');
+            alert('Could not remove this dog — try again.');
+          }
+        });
+      });
+    }, (err) => {
+      loading.textContent = 'Could not load — check your Firebase setup.';
+      console.error(err);
+    });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Skip re-entering PIN within the same browser tab session
+  if (sessionStorage.getItem('dogAdminUnlocked') === '1') {
+    lockScreen.style.display = 'none';
+    startBoard();
+  } else {
+    initLock();
+  }
+</script>
+</body>
+</html>
