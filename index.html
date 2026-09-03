@@ -168,6 +168,78 @@
     font-size:1.6rem;
     margin-bottom:2px;
   }
+
+  /* Action sheet for photo source picker */
+  .sheet-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(10,13,22,0.55);
+    z-index:50;
+    align-items:flex-end;
+    justify-content:center;
+  }
+  .sheet-overlay.open{display:flex;}
+  .sheet{
+    width:100%;
+    max-width:420px;
+    background:var(--navy-2);
+    border:1px solid var(--line);
+    border-bottom:none;
+    border-radius:20px 20px 0 0;
+    padding:10px 14px calc(14px + env(safe-area-inset-bottom));
+    box-shadow:0 -10px 40px rgba(0,0,0,0.4);
+    transform:translateY(100%);
+    transition:transform .22s ease-out;
+  }
+  .sheet-overlay.open .sheet{transform:translateY(0);}
+  .sheet-handle{
+    width:36px;
+    height:4px;
+    border-radius:2px;
+    background:var(--line);
+    margin:4px auto 12px;
+  }
+  .sheet-title{
+    text-align:center;
+    color:#b9c0d4;
+    font-size:0.82rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    margin:0 0 10px;
+  }
+  .sheet-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    justify-content:center;
+    padding:14px;
+    margin-bottom:8px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:var(--navy);
+    color:var(--cream);
+    font-weight:700;
+    font-size:0.98rem;
+    font-family:'Fredoka','Nunito',sans-serif;
+    cursor:pointer;
+    transition:background .15s, transform .1s;
+  }
+  .sheet-btn:hover{background:#2c3852;}
+  .sheet-btn:active{transform:scale(0.98);}
+  .sheet-cancel{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    background:transparent;
+    color:var(--mustard);
+    font-weight:800;
+    font-size:0.98rem;
+    font-family:'Fredoka','Nunito',sans-serif;
+    cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -186,15 +258,31 @@
     <div class="field">
       <label>Photo</label>
       <div class="drop" id="dropZone">
-        <input type="file" id="dogPhoto" accept="image/*" capture="environment" required>
-        <div class="drop-text" id="dropText"><strong>Tap to choose</strong> or take a photo</div>
+        <div class="drop-text" id="dropText"><strong>Tap to add a photo</strong></div>
       </div>
       <div id="preview"><img id="previewImg" alt="Preview"></div>
+
+      <!-- Hidden inputs, one per photo source -->
+      <input type="file" id="libraryInput" accept="image/*" style="display:none">
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="filesInput" style="display:none">
     </div>
 
     <button type="submit" id="submitBtn">Send to the Board</button>
     <div class="status" id="statusMsg"></div>
   </form>
+</div>
+
+<!-- Photo source action sheet -->
+<div class="sheet-overlay" id="sheetOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <p class="sheet-title">Add a Photo</p>
+    <button type="button" class="sheet-btn" id="optLibrary">🖼️ Choose from Library</button>
+    <button type="button" class="sheet-btn" id="optCamera">📷 Take a Photo</button>
+    <button type="button" class="sheet-btn" id="optFiles">📁 Choose a File</button>
+    <button type="button" class="sheet-cancel" id="sheetCancel">Cancel</button>
+  </div>
 </div>
 
 <!-- Firebase -->
@@ -220,7 +308,6 @@
 
   const form = document.getElementById('dogForm');
   const nameInput = document.getElementById('dogName');
-  const fileInput = document.getElementById('dogPhoto');
   const dropText = document.getElementById('dropText');
   const preview = document.getElementById('preview');
   const previewImg = document.getElementById('previewImg');
@@ -228,22 +315,47 @@
   const statusMsg = document.getElementById('statusMsg');
   const dropZone = document.getElementById('dropZone');
 
+  const libraryInput = document.getElementById('libraryInput');
+  const cameraInput = document.getElementById('cameraInput');
+  const filesInput = document.getElementById('filesInput');
+  const sheetOverlay = document.getElementById('sheetOverlay');
+  const optLibrary = document.getElementById('optLibrary');
+  const optCamera = document.getElementById('optCamera');
+  const optFiles = document.getElementById('optFiles');
+  const sheetCancel = document.getElementById('sheetCancel');
+
   let compressedDataUrl = null;
 
-  fileInput.addEventListener('change', handleFile);
+  function openSheet(){ sheetOverlay.classList.add('open'); }
+  function closeSheet(){ sheetOverlay.classList.remove('open'); }
+
+  dropZone.addEventListener('click', openSheet);
+  sheetCancel.addEventListener('click', closeSheet);
+  sheetOverlay.addEventListener('click', (e) => {
+    if (e.target === sheetOverlay) closeSheet();
+  });
+
+  optLibrary.addEventListener('click', () => { closeSheet(); libraryInput.click(); });
+  optCamera.addEventListener('click', () => { closeSheet(); cameraInput.click(); });
+  optFiles.addEventListener('click', () => { closeSheet(); filesInput.click(); });
+
+  [libraryInput, cameraInput, filesInput].forEach(input => {
+    input.addEventListener('change', () => {
+      if (input.files && input.files[0]) handleFile(input.files[0]);
+    });
+  });
+
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
   dropZone.addEventListener('drop', e => {
     e.preventDefault();
     dropZone.classList.remove('drag');
     if (e.dataTransfer.files[0]) {
-      fileInput.files = e.dataTransfer.files;
-      handleFile();
+      handleFile(e.dataTransfer.files[0]);
     }
   });
 
-  function handleFile(){
-    const file = fileInput.files[0];
+  function handleFile(file){
     if (!file) return;
     dropText.innerHTML = `<strong>${file.name}</strong> selected`;
     statusMsg.textContent = '';
@@ -306,7 +418,8 @@
       preview.style.display = 'none';
       previewImg.src = '';
       compressedDataUrl = null;
-      dropText.innerHTML = '<strong>Tap to choose</strong> or take a photo';
+      dropText.innerHTML = '<strong>Tap to add a photo</strong>';
+      [libraryInput, cameraInput, filesInput].forEach(input => input.value = '');
     } catch (err) {
       console.error(err);
       statusMsg.textContent = 'Something went wrong — check your Firebase setup.';
