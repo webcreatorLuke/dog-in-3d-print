@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Custom 3D prints by Fun3ds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=DM+Sans:wght@400;500;700&family=Poppins:wght@800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f3f5f9; --surface:#ffffff; --ink:#111827; --muted:#566074; --line:#dde2eb; --panel:#101828;
+    --dog:#2f5bff; --dog-on:#ffffff; --orn:#d92d3f; --orn-on:#ffffff; --bad:#b3261e; --ok:#14804a;
+    --accent:var(--dog); --on-accent:var(--dog-on);
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg:#0c1018; --surface:#151b27; --ink:#eef1f7; --muted:#a0aabd; --line:#283246; --panel:#070a10;
+    --dog:#7d9bff; --dog-on:#0a1030; --orn:#ff6b7a; --orn-on:#2a0508; --bad:#ff8a80; --ok:#6fd49a;
+  } }
+  body[data-mode="ornament"] { --accent:var(--orn); --on-accent:var(--orn-on); }
+
+  * { box-sizing:border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { margin:0; background:var(--bg); color:var(--ink); font:400 16px/1.55 "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+         padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px); transition:background .3s; }
+  .wrap { max-width:1080px; margin:0 auto; padding:20px 20px 72px; }
+  .brand { font:800 1.15rem/1 "Unbounded", system-ui, sans-serif; letter-spacing:-.01em; display:inline-block; padding:6px 0 26px; }
+  .brand b { color:var(--accent); font-weight:800; transition:color .3s; }
+
+  /* ---- the switch */
+  .switch { position:relative; display:grid; grid-template-columns:1fr 1fr; background:var(--surface); border:1.5px solid var(--line);
+            border-radius:999px; padding:5px; max-width:560px; margin:0 auto 44px; box-shadow:0 1px 0 rgba(0,0,0,.03); }
+  .thumb { position:absolute; top:5px; bottom:5px; left:5px; width:calc(50% - 5px); border-radius:999px; background:var(--accent);
+           transition:transform .3s cubic-bezier(.3,.9,.3,1), background .3s; }
+  body[data-mode="ornament"] .thumb { transform:translateX(100%); }
+  .switch button { position:relative; z-index:1; background:none; border:0; border-radius:999px; padding:14px 10px; font:700 .98rem/1.2 "DM Sans", system-ui, sans-serif;
+                   color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:color .25s; }
+  .switch button svg { width:22px; height:22px; flex:none; }
+  .switch button[aria-selected="true"] { color:var(--on-accent); }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+  .switch button:focus-visible { outline-offset:-1px; outline-color:var(--ink); }
+
+  /* ---- layout */
+  .stage { display:grid; gap:36px; grid-template-columns:minmax(0,1fr); align-items:start; }
+  @media (max-width: 919px) { .preview { order:-1; } .pv { padding:18px 16px 14px; border-radius:22px; } #orn { max-width:210px; } .tag { width:min(100%, 210px); margin-top:8px; padding-top:38px; } .pv .cap, .pv figcaption { margin-top:8px; font-size:.82rem; } }
+  @media (min-width: 920px) { .stage { grid-template-columns:minmax(0,1fr) minmax(0,430px); gap:56px; } .preview { position:sticky; top:24px; } }
+  .copy h1 { font:800 clamp(1.9rem, 5.2vw, 3rem)/1.06 "Unbounded", system-ui, sans-serif; letter-spacing:-.025em; margin:0 0 14px; }
+  .copy p.lead { margin:0 0 26px; color:var(--muted); max-width:46ch; font-size:1.05rem; }
+  .card { background:var(--surface); border:1.5px solid var(--line); border-radius:22px; padding:24px; }
+  @media (max-width:520px) { .card { padding:18px; } }
+
+  /* ---- form */
+  .field { margin:0 0 18px; }
+  .field > label, .field > .lbl { display:block; font-weight:700; margin:0 0 6px; }
+  .field .opt { font-weight:400; color:var(--muted); }
+  .two { display:grid; gap:14px; grid-template-columns:1fr; } @media (min-width:520px) { .two { grid-template-columns:1fr 1fr; } }
+  input[type=text], input[type=email], textarea { width:100%; font:inherit; color:inherit; background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:13px 14px; transition:border-color .2s; }
+  input[type=text]:hover, input[type=email]:hover, textarea:hover { border-color:var(--muted); }
+  input:focus-visible, textarea:focus-visible { outline:3px solid var(--accent); outline-offset:1px; border-color:transparent; }
+  textarea { min-height:90px; resize:vertical; }
+  .count { float:right; font-weight:400; color:var(--muted); font-size:.85rem; }
+  .hint { color:var(--muted); font-size:.9rem; margin:6px 0 0; }
+
+  .drop { position:relative; display:grid; place-items:center; align-content:center; text-align:center; gap:4px; min-height:150px; padding:18px; cursor:pointer;
+          border:2px dashed var(--line); border-radius:16px; background:var(--bg); transition:border-color .2s, background .2s; }
+  .drop:hover, .drop.over { border-color:var(--accent); }
+  .drop:focus-within { outline:3px solid var(--accent); outline-offset:2px; }
+  .drop input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .drop strong { font-size:1.02rem; } .drop small { color:var(--muted); }
+  .drop.has { border-style:solid; border-color:var(--accent); } .drop.has strong::before { content:"Photo added. "; color:var(--ok); }
+
+  button.go { margin-top:6px; width:100%; font:700 1.05rem/1 "DM Sans", system-ui, sans-serif; background:var(--accent); color:var(--on-accent); border:0; border-radius:14px;
+              padding:17px 18px; cursor:pointer; transition:transform .15s, filter .2s, background .3s; }
+  button.go:hover { filter:brightness(1.07); } button.go:active { transform:scale(.985); }
+  button.go[disabled] { opacity:.6; cursor:progress; }
+  .msg { margin-top:14px; padding:12px 14px; border-radius:12px; display:none; font-weight:500; }
+  .msg.err { display:block; color:var(--bad); border:1.5px solid var(--bad); }
+  .trap { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+
+  .done { text-align:center; padding:44px 24px; }
+  .done .tick { width:64px; height:64px; border-radius:50%; background:var(--accent); color:var(--on-accent); display:grid; place-items:center; margin:0 auto 16px; }
+  .done h2 { font:800 1.5rem/1.15 "Unbounded", system-ui, sans-serif; margin:0 0 8px; }
+  .done p { color:var(--muted); margin:0 0 20px; }
+  .done button { font:700 1rem/1 "DM Sans", system-ui, sans-serif; background:none; color:var(--ink); border:1.5px solid var(--line); border-radius:12px; padding:13px 18px; cursor:pointer; }
+  .done button:hover { border-color:var(--ink); }
+
+  /* ---- previews */
+  .pv { background:var(--panel); border-radius:28px; padding:26px 22px 20px; text-align:center; color:#fff; }
+  .pv figcaption, .pv .cap { color:#b6bfd1; font-size:.9rem; margin-top:14px; }
+  .pv[hidden], form[hidden], .done[hidden] { display:none; }
+  .enter { animation:rise .35s cubic-bezier(.3,.9,.3,1); }
+  @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  #orn { width:100%; max-width:340px; height:auto; display:block; margin:0 auto; }
+  #orn .disc { fill:var(--accent); transition:fill .3s; }
+
+  .tag { position:relative; width:min(100%, 320px); margin:16px auto 0; background:var(--surface); color:var(--ink); border-radius:22px; padding:44px 16px 18px; }
+  .tag::before { content:""; position:absolute; top:14px; left:50%; width:16px; height:16px; margin-left:-8px; border-radius:50%; background:var(--panel); }
+  .tag .frame { aspect-ratio:1; border-radius:14px; background:var(--bg); display:grid; place-items:center; overflow:hidden; }
+  .tag img { width:100%; height:100%; object-fit:cover; display:none; }
+  .tag.has img { display:block; } .tag.has .paw { display:none; }
+  .tag .paw { width:42%; color:var(--line); }
+  .tag .nm { font:800 1.25rem/1.2 "Unbounded", system-ui, sans-serif; margin-top:14px; word-break:break-word; }
+  .tag .sub { color:var(--muted); font-size:.9rem; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body data-mode="dog">
+<div class="wrap">
+  <span class="brand">Fun<b>3</b>ds</span>
+
+  <div class="switch" role="tablist" aria-label="What would you like printed?">
+    <span class="thumb" aria-hidden="true"></span>
+    <button role="tab" id="tab-dog" aria-controls="panel" aria-selected="true" data-mode="dog">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="6" cy="10" rx="2.1" ry="2.8"/><ellipse cx="10.5" cy="5.6" rx="2.1" ry="2.8"/><ellipse cx="15.5" cy="5.6" rx="2.1" ry="2.8"/><ellipse cx="19.5" cy="10" rx="2.1" ry="2.8"/><path d="M12.9 11c-3 0-6 3.1-6 6 0 2 1.3 3 3.1 3 1 0 1.9-.5 2.9-.5s1.9.5 2.9.5c1.8 0 3.1-1 3.1-3 0-2.9-3-6-6-6z"/></svg>
+      Dog in 3D print
+    </button>
+    <button role="tab" id="tab-ornament" aria-controls="panel" aria-selected="false" data-mode="ornament" tabindex="-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="14.5" r="7"/><path d="M12 7.5V5"/><circle cx="12" cy="3.6" r="1.5"/><path d="M9.5 15.5l2.5-3.2 2.5 3.2M12 12.3V18"/></svg>
+      Ornament in 3D print
+    </button>
+  </div>
+
+  <div class="stage" id="panel" role="tabpanel">
+    <section class="copy">
+      <h1 id="title">Your dog, in 3D print</h1>
+      <p class="lead" id="lead"></p>
+
+      <div class="card">
+        <!-- DOG -->
+        <form id="form-dog" novalidate>
+          <div class="two">
+            <div class="field"><label for="d-name">Your name</label><input type="text" id="d-name" name="customer_name" autocomplete="name" maxlength="80" required></div>
+            <div class="field"><label for="d-email">Email</label><input type="email" id="d-email" name="email" autocomplete="email" maxlength="120" required></div>
+          </div>
+          <div class="field"><label for="d-dog">Dog’s name</label><input type="text" id="d-dog" name="dog_name" maxlength="60" required></div>
+          <div class="field">
+            <span class="lbl" id="d-photo-l">Photo of your dog</span>
+            <div class="drop" id="drop">
+              <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp,image/heic" aria-labelledby="d-photo-l">
+              <strong>Choose or drop a photo</strong>
+              <small>JPG, PNG, WebP or HEIC. A clear side view of the whole dog works best.</small>
+            </div>
+          </div>
+          <div class="field"><label for="d-notes">Anything else? <span class="opt">(optional)</span></label><textarea id="d-notes" name="notes" maxlength="500"></textarea></div>
+          <input class="trap" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button class="go" type="submit">Send dog request</button>
+          <div class="msg" role="status" aria-live="polite"></div>
+        </form>
+
+        <!-- ORNAMENT -->
+        <form id="form-ornament" novalidate hidden>
+          <div class="two">
+            <div class="field"><label for="o-name">Your name</label><input type="text" id="o-name" name="customer_name" autocomplete="name" maxlength="80" required></div>
+            <div class="field"><label for="o-email">Email</label><input type="email" id="o-email" name="email" autocomplete="email" maxlength="120" required></div>
+          </div>
+          <div class="field"><label for="o1">Name on the ornament <span class="count" id="c1">0/14</span></label>
+            <input type="text" id="o1" name="name_line1" maxlength="14" autocomplete="off" required></div>
+          <div class="field"><label for="o2">Second line <span class="opt">(optional)</span> <span class="count" id="c2">0/14</span></label>
+            <input type="text" id="o2" name="name_line2" maxlength="14" autocomplete="off">
+            <p class="hint">Short names look best. Letters are cut all the way through, so the preview shows light passing through.</p></div>
+          <div class="field"><label for="o-notes">Anything else? <span class="opt">(optional)</span></label><textarea id="o-notes" name="notes" maxlength="500"></textarea></div>
+          <input type="hidden" name="kind" value="ornament">
+          <input class="trap" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button class="go" type="submit">Send ornament request</button>
+          <div class="msg" role="status" aria-live="polite"></div>
+        </form>
+
+        <div class="done" id="done" hidden>
+          <div class="tick"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+          <h2>Request sent</h2>
+          <p id="done-text">We’ll review it and email you a price and a payment link.</p>
+          <button type="button" id="again">Send another request</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="preview" aria-label="Preview">
+      <!-- dog preview -->
+      <figure class="pv" id="pv-dog" style="margin:0">
+        <div class="tag" id="tag">
+          <div class="frame">
+            <img id="prev" alt="Your dog’s photo">
+            <svg class="paw" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="6" cy="10" rx="2.1" ry="2.8"/><ellipse cx="10.5" cy="5.6" rx="2.1" ry="2.8"/><ellipse cx="15.5" cy="5.6" rx="2.1" ry="2.8"/><ellipse cx="19.5" cy="10" rx="2.1" ry="2.8"/><path d="M12.9 11c-3 0-6 3.1-6 6 0 2 1.3 3 3.1 3 1 0 1.9-.5 2.9-.5s1.9.5 2.9.5c1.8 0 3.1-1 3.1-3 0-2.9-3-6-6-6z"/></svg>
+          </div>
+          <div class="nm" id="pv-dogname">Your dog</div>
+          <div class="sub">Printed in 3D</div>
+        </div>
+        <figcaption>Your photo stays private and is only used to make your print.</figcaption>
+      </figure>
+
+      <!-- ornament preview -->
+      <figure class="pv" id="pv-orn" style="margin:0" hidden>
+        <svg id="orn" viewBox="0 0 200 240" role="img" aria-label="Preview of your ornament">
+          <defs>
+            <path id="tree" d="M-9 -8H9L0 -19ZM-7 -14H7L0 -23ZM-5 -20H5L0 -28ZM-1.6 0H1.6V-8H-1.6Z"/>
+            <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="240">
+              <rect width="200" height="240" fill="#fff"/>
+              <circle cx="100" cy="24" r="6.5" fill="#000"/>
+              <use href="#tree" x="68" y="104" fill="#000"/>
+              <use href="#tree" x="132" y="104" fill="#000"/>
+              <path class="star" data-x="100" data-y="82" data-r="10" fill="#000"/>
+              <path class="star" data-x="42" data-y="100" data-r="5.5" fill="#000"/>
+              <path class="star" data-x="158" data-y="100" data-r="5.5" fill="#000"/>
+              <path class="star" data-x="46" data-y="164" data-r="5.5" fill="#000"/>
+              <path class="star" data-x="154" data-y="164" data-r="5.5" fill="#000"/>
+              <g stroke="#000" stroke-width="2.6" stroke-linecap="round">
+                <g transform="translate(28 128)"><path d="M-8 0H8M-4 -6.9L4 6.9M-4 6.9L4 -6.9"/></g>
+                <g transform="translate(172 128)"><path d="M-8 0H8M-4 -6.9L4 6.9M-4 6.9L4 -6.9"/></g>
+              </g>
+              <g transform="translate(76 188)"><rect x="-8" y="-8" width="16" height="16" fill="#000"/><path d="M0 -8V8M-8 0H8" stroke="#fff" stroke-width="2"/><circle cx="-3.4" cy="-11" r="3.2" fill="#000"/><circle cx="3.4" cy="-11" r="3.2" fill="#000"/></g>
+              <g transform="translate(98 190)"><path d="M0 10V-4A5.5 5.5 0 0 1 11 -4" fill="none" stroke="#000" stroke-width="4.6" stroke-linecap="round"/><path d="M-3 6L3 3M-3 0L3 -3" stroke="#fff" stroke-width="1.5"/></g>
+              <g transform="translate(130 188)"><ellipse cx="-5" cy="-2" rx="7" ry="3.2" transform="rotate(-28 -5 -2)" fill="#000"/><ellipse cx="5" cy="-2" rx="7" ry="3.2" transform="rotate(28 5 -2)" fill="#000"/><circle cx="-2.6" cy="4" r="2.4" fill="#000"/><circle cx="2.6" cy="4" r="2.4" fill="#000"/><circle cx="0" cy="7.4" r="2.4" fill="#000"/></g>
+              <text id="t1" x="100" y="128" text-anchor="middle" dominant-baseline="central" font-family="Poppins, system-ui, sans-serif" font-weight="800" fill="#000">NAME</text>
+              <text id="t2" x="100" y="150" text-anchor="middle" dominant-baseline="central" font-family="Poppins, system-ui, sans-serif" font-weight="800" fill="#000"></text>
+            </mask>
+          </defs>
+          <g mask="url(#cut)"><circle class="disc" cx="100" cy="128" r="88"/><circle class="disc" cx="100" cy="24" r="15"/></g>
+        </svg>
+        <div class="cap">Preview is approximate. Ornaments are about 3 inches across and cut all the way through.</div>
+      </figure>
+    </aside>
+  </div>
+</div>
+
+<script>
+// Your Worker address (no trailing slash).
+const API = "https://fun3ds-dog-orders.lukeplaysgamezandmore.workers.dev";
+
+const $ = (s, r = document) => r.querySelector(s);
+const COPY = {
+  dog: { title: "Your dog, in 3D print", lead: "Send a clear photo and your dog’s name. We review every request and email you a price and a payment link if we can print it.", done: "We’ll review your dog’s photo and email you a price and a payment link if we can print it." },
+  ornament: { title: "Your name, cut into an ornament", lead: "Pick the name and we cut it all the way through a round ornament, surrounded by trees, stars and snowflakes. We email you a price and a payment link.", done: "We’ll review your ornament and email you a price and a payment link." },
+};
+let mode = "dog";
+
+function setMode(m, fromHash) {
+  mode = m; document.body.dataset.mode = m;
+  document.querySelectorAll(".switch button").forEach((b) => { const on = b.dataset.mode === m; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; });
+  const done = $("#done").hidden === false;
+  $("#form-dog").hidden = m !== "dog" || done; $("#form-ornament").hidden = m !== "ornament" || done;
+  $("#pv-dog").hidden = m !== "dog"; $("#pv-orn").hidden = m !== "ornament";
+  $("#title").textContent = COPY[m].title; $("#lead").textContent = COPY[m].lead;
+  [$("#" + (m === "dog" ? "pv-dog" : "pv-orn")), done ? $("#done") : $("#form-" + m)].forEach((e) => { e.classList.remove("enter"); void e.offsetWidth; e.classList.add("enter"); });
+  if (!fromHash) history.replaceState(null, "", "#" + m);
+  fit();
+}
+document.querySelectorAll(".switch button").forEach((b) => {
+  b.addEventListener("click", () => setMode(b.dataset.mode));
+  b.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const m = mode === "dog" ? "ornament" : "dog"; setMode(m); $("#tab-" + m).focus(); }
+  });
+});
+
+// ---------- stars in the ornament preview
+document.querySelectorAll(".star").forEach((s) => {
+  const x = +s.dataset.x, y = +s.dataset.y, r = +s.dataset.r, pts = [];
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.42 : r; pts.push((x + rr * Math.cos(a)).toFixed(2) + " " + (y + rr * Math.sin(a)).toFixed(2)); }
+  s.setAttribute("d", "M" + pts.join("L") + "Z");
+});
+
+// ---------- ornament live preview
+function fit() {
+  if ($("#pv-orn").hidden) return;
+  const l1 = ($("#o1").value.trim() || "NAME").toUpperCase(), l2 = $("#o2").value.trim().toUpperCase();
+  const t1 = $("#t1"), t2 = $("#t2");
+  t1.textContent = l1; t2.textContent = l2;
+  t1.setAttribute("font-size", 34); t2.setAttribute("font-size", 34);
+  const w = Math.max(t1.getComputedTextLength(), l2 ? t2.getComputedTextLength() : 0) || 1;
+  let size = Math.min(34, 34 * 100 / w); if (l2) size = Math.min(size, 24);
+  t1.setAttribute("font-size", size); t2.setAttribute("font-size", size);
+  if (l2) { t1.setAttribute("y", 128 - size * 0.62); t2.setAttribute("y", 128 + size * 0.62); } else t1.setAttribute("y", 128);
+}
+["o1", "o2"].forEach((id, i) => $("#" + id).addEventListener("input", () => { $("#c" + (i + 1)).textContent = $("#" + id).value.length + "/14"; fit(); }));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+
+// ---------- dog preview + photo
+$("#d-dog").addEventListener("input", (e) => ($("#pv-dogname").textContent = e.target.value.trim() || "Your dog"));
+const photo = $("#photo"), drop = $("#drop"), prev = $("#prev"), tag = $("#tag");
+let chosen = null;
+async function shrink(file) {
+  try {
+    const bmp = await createImageBitmap(file);
+    for (const [edge, q] of [[1400, 0.85], [1200, 0.8], [1000, 0.75], [800, 0.7]]) {
+      const sc = Math.min(1, edge / Math.max(bmp.width, bmp.height));
+      const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+      c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+      const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", q));
+      if (blob && blob.size <= 1400 * 1024) return new File([blob], "dog.jpg", { type: "image/jpeg" });
+    }
+    return null;
+  } catch { return file.size <= 1400 * 1024 ? file : null; }
+}
+async function takePhoto(f) {
+  const msg = $("#form-dog .msg"); msg.className = "msg";
+  chosen = f ? await shrink(f) : null;
+  if (!chosen) { drop.classList.remove("has"); tag.classList.remove("has"); photo.value = ""; if (f) { msg.className = "msg err"; msg.textContent = "That photo is too large or can’t be read. Try a JPG or PNG."; } return; }
+  prev.src = URL.createObjectURL(chosen); drop.classList.add("has"); tag.classList.add("has");
+}
+photo.addEventListener("change", () => takePhoto(photo.files[0]));
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, () => drop.classList.add("over")));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove("over")));
+drop.addEventListener("drop", (e) => { if (e.dataTransfer.files[0]) { photo.files = e.dataTransfer.files; takePhoto(photo.files[0]); } });
+
+// ---------- sending
+async function send(form, extra) {
+  const msg = $(".msg", form), btn = $(".go", form), label = btn.textContent;
+  msg.className = "msg";
+  if (!form.reportValidity()) return;
+  const fd = new FormData(form); if (extra) extra(fd);
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    const r = await fetch(API + "/api/requests", { method: "POST", body: fd });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || "Could not send your request. Please try again.");
+    form.reset(); chosen = null; drop.classList.remove("has"); tag.classList.remove("has"); $("#pv-dogname").textContent = "Your dog"; $("#c1").textContent = $("#c2").textContent = "0/14"; fit();
+    form.hidden = true; $("#done-text").textContent = COPY[mode].done; $("#done").hidden = false; $("#done").classList.add("enter");
+  } catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+$("#form-dog").addEventListener("submit", (e) => { e.preventDefault(); if (!chosen) { const m = $("#form-dog .msg"); m.className = "msg err"; m.textContent = "Please add a photo of your dog."; return; } send(e.target, (fd) => { fd.set("photo", chosen, chosen.name); fd.set("kind", "dog"); }); });
+$("#form-ornament").addEventListener("submit", (e) => { e.preventDefault(); send(e.target); });
+$("#again").addEventListener("click", () => { $("#done").hidden = true; setMode(mode, true); });
+
+const start = location.hash === "#ornament" ? "ornament" : "dog";
+setMode(start, true);
+window.addEventListener("hashchange", () => { const m = location.hash === "#ornament" ? "ornament" : "dog"; if (m !== mode) setMode(m, true); });
+</script>
+</body>
+</html>

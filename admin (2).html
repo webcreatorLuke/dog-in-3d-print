@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Fun3ds requests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f3f5f9; --surface:#fff; --ink:#111827; --muted:#566074; --line:#dde2eb; --dog:#2f5bff; --orn:#d92d3f; --bad:#b3261e; --ok:#14804a; --on:#fff; --panel:#101828; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0c1018; --surface:#151b27; --ink:#eef1f7; --muted:#a0aabd; --line:#283246; --dog:#7d9bff; --orn:#ff6b7a; --bad:#ff8a80; --ok:#6fd49a; --on:#0a0d18; --panel:#070a10; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:400 16px/1.5 "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif; padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0); }
+  main { max-width:980px; margin:0 auto; padding:24px 18px 72px; }
+  h1 { font:800 1.5rem/1.1 "Unbounded", system-ui, sans-serif; letter-spacing:-.02em; margin:6px 0 20px; }
+  input, button, textarea { font:inherit; color:inherit; }
+  input[type=password], input[type=number], input[type=url] { background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:11px 13px; min-width:0; }
+  button { cursor:pointer; border-radius:10px; border:1.5px solid var(--line); background:var(--surface); padding:10px 15px; font-weight:700; }
+  button:hover { border-color:var(--muted); }
+  button.primary { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  button.danger { color:var(--bad); border-color:color-mix(in srgb, var(--bad) 50%, var(--line)); }
+  :focus-visible { outline:3px solid var(--dog); outline-offset:2px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .bar input { flex:1; min-width:220px; }
+  .err { color:var(--bad); margin:0 0 12px; font-weight:500; }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; align-items:center; }
+  .seg { display:inline-flex; background:var(--surface); border:1.5px solid var(--line); border-radius:999px; padding:3px; }
+  .seg button { border:0; background:none; border-radius:999px; padding:8px 14px; color:var(--muted); }
+  .seg button[aria-pressed=true] { background:var(--ink); color:var(--bg); }
+  .card { display:grid; grid-template-columns:190px 1fr; gap:18px; background:var(--surface); border:1.5px solid var(--line); border-radius:18px; padding:14px; margin-bottom:14px; }
+  @media (max-width:640px) { .card { grid-template-columns:1fr; } }
+  .visual { width:100%; aspect-ratio:1; border-radius:12px; overflow:hidden; background:var(--bg); display:grid; place-items:center; }
+  .visual img { width:100%; height:100%; object-fit:cover; }
+  .visual.orn { background:var(--panel); padding:12px; text-align:center; color:#fff; font:800 1.25rem/1.15 "Unbounded", system-ui, sans-serif; overflow-wrap:anywhere; }
+  .visual.orn span { display:block; background:var(--orn); color:var(--on); border-radius:50%; width:100%; aspect-ratio:1; display:grid; place-items:center; padding:14%; font-size:clamp(.9rem, 3vw, 1.1rem); }
+  .head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .head h2 { margin:0; font-size:1.2rem; overflow-wrap:anywhere; }
+  .badge { font-size:.8rem; font-weight:700; padding:3px 10px; border-radius:999px; }
+  .badge.dog { background:color-mix(in srgb, var(--dog) 16%, transparent); color:var(--dog); }
+  .badge.ornament { background:color-mix(in srgb, var(--orn) 16%, transparent); color:var(--orn); }
+  .meta p { margin:3px 0; color:var(--muted); overflow-wrap:anywhere; }
+  .status { font-weight:700; } .status.accepted { color:var(--ok); } .status.declined { color:var(--bad); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .empty { color:var(--muted); padding:30px 0; text-align:center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Requests</h1>
+  <div class="bar">
+    <input type="password" id="key" placeholder="Admin key" autocomplete="current-password" aria-label="Admin key">
+    <button class="primary" id="load">Load requests</button>
+  </div>
+  <p class="err" id="err" role="alert"></p>
+  <div class="filters" id="filters" hidden>
+    <div class="seg" id="status" role="group" aria-label="Status"></div>
+    <div class="seg" id="kind" role="group" aria-label="Type"></div>
+  </div>
+  <div id="list"></div>
+</main>
+<script>
+// Your Worker address (no trailing slash).
+const API = "https://fun3ds-dog-orders.lukeplaysgamezandmore.workers.dev";
+
+const $ = (id) => document.getElementById(id);
+let KEY = sessionStorage.getItem("dogKey") || "", ALL = [], STATUS = "pending", KIND = "all";
+if (KEY) $("key").value = KEY;
+
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, { ...opts, headers: { "X-Admin-Key": KEY, ...(opts.headers || {}) } });
+  if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Request failed (" + r.status + ")"); }
+  return r;
+}
+function el(tag, props = {}, ...kids) { const e = Object.assign(document.createElement(tag), props); kids.forEach((k) => k && e.append(k)); return e; }
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+
+async function load() {
+  KEY = $("key").value.trim(); $("err").textContent = "";
+  try { ALL = (await (await api("/api/admin/requests")).json()).requests; sessionStorage.setItem("dogKey", KEY); render(); }
+  catch (e) { $("err").textContent = e.message; }
+}
+
+function seg(host, options, current, set) {
+  host.replaceChildren();
+  options.forEach(([val, label]) => { const b = el("button", { textContent: label, type: "button" }); b.setAttribute("aria-pressed", String(current === val)); b.onclick = () => { set(val); render(); }; host.append(b); });
+}
+
+function render() {
+  $("filters").hidden = false;
+  const inKind = (x) => KIND === "all" || x.kind === KIND;
+  const n = (st) => ALL.filter((x) => inKind(x) && (st === "all" || x.status === st)).length;
+  seg($("status"), ["pending", "accepted", "declined", "all"].map((t) => [t, `${cap(t)} (${n(t)})`]), STATUS, (v) => (STATUS = v));
+  seg($("kind"), [["all", "Everything"], ["dog", "Dogs"], ["ornament", "Ornaments"]], KIND, (v) => (KIND = v));
+  const list = $("list"); list.replaceChildren();
+  const rows = ALL.filter((x) => inKind(x) && (STATUS === "all" || x.status === STATUS));
+  if (!rows.length) { list.append(el("div", { className: "empty", textContent: "Nothing here yet." })); return; }
+  rows.forEach((x) => list.append(card(x)));
+}
+
+function card(x) {
+  const visual = el("div", { className: "visual" + (x.kind === "ornament" ? " orn" : "") });
+  if (x.kind === "dog") {
+    const img = el("img", { alt: "Photo of " + x.dog_name }); visual.append(img);
+    api("/api/admin/photo/" + x.id).then((r) => r.blob()).then((b) => (img.src = URL.createObjectURL(b))).catch(() => {});
+  } else visual.append(el("span", { textContent: x.dog_name.replace(" / ", "\n").toUpperCase(), style: "white-space:pre-line" }));
+
+  const meta = el("div", { className: "meta" },
+    el("div", { className: "head" }, el("h2", { textContent: x.dog_name }), el("span", { className: "badge " + x.kind, textContent: x.kind === "dog" ? "Dog" : "Ornament" })),
+    el("p", { textContent: x.customer_name + " – " + x.email }),
+    el("p", { textContent: new Date(x.created_at * 1000).toLocaleString() }),
+    x.notes ? el("p", { textContent: "Notes: " + x.notes }) : null,
+    el("p", { className: "status " + x.status, textContent: cap(x.status) + (x.price_cents ? " at $" + (x.price_cents / 100).toFixed(2) : "") }));
+  if (x.payment_link) meta.append(el("p", {}, el("a", { href: x.payment_link, target: "_blank", rel: "noopener", textContent: "Payment link" })));
+
+  const row = el("div", { className: "row" });
+  if (x.status === "pending") {
+    const price = el("input", { type: "number", min: "0.5", step: "0.01", placeholder: "Price (USD)", style: "width:130px" }); price.setAttribute("aria-label", "Price in dollars");
+    const link = el("input", { type: "url", placeholder: "Payment link (https://…)", style: "flex:1;min-width:200px" }); link.setAttribute("aria-label", "Payment link");
+    const yes = el("button", { className: "primary", textContent: "Accept" });
+    const no = el("button", { className: "danger", textContent: "Decline" });
+    yes.onclick = () => decide(x.id, { action: "accept", price: price.value, payment_link: link.value });
+    no.onclick = () => confirm("Decline this request?") && decide(x.id, { action: "decline" });
+    row.append(price, link, yes, no);
+  }
+  const del = el("button", { className: "danger", textContent: "Delete" });
+  del.onclick = async () => { if (!confirm("Delete this request for good?")) return; try { await api("/api/admin/requests/" + x.id, { method: "DELETE" }); await load(); } catch (e) { $("err").textContent = e.message; } };
+  row.append(del); meta.append(row);
+  return el("article", { className: "card" }, visual, meta);
+}
+
+async function decide(id, body) {
+  $("err").textContent = "";
+  try { await api("/api/admin/requests/" + id + "/decision", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); await load(); }
+  catch (e) { $("err").textContent = e.message; }
+}
+$("load").onclick = load;
+$("key").addEventListener("keydown", (e) => e.key === "Enter" && load());
+if (KEY) load();
+</script>
+</body>
+</html>
