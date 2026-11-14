@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get your dog in a 3D print</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#ffffff; --ink:#14213d; --muted:#5b6478; --line:#dfe3ea; --accent:#0f8b8d; --accent-ink:#ffffff; --bad:#b3261e; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#10151f; --ink:#eef1f7; --muted:#a3adc2; --line:#2a3345; --accent:#37b6b8; --accent-ink:#06191a; --bad:#ff8a80; } }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:"Bricolage Grotesque", system-ui, sans-serif; line-height:1.5; padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px); }
+  main { max-width: 560px; margin: 0 auto; padding: 40px 20px 64px; }
+  h1 { font-size: clamp(2rem, 7vw, 3rem); line-height:1.05; font-weight:800; margin:0 0 12px; letter-spacing:-0.02em; }
+  p.lead { color:var(--muted); margin:0 0 32px; max-width:46ch; }
+  label { display:block; font-weight:600; margin:20px 0 6px; }
+  input[type=text], input[type=email], select, textarea { width:100%; font:inherit; color:inherit; background:transparent; border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; }
+  textarea { min-height: 84px; resize: vertical; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, .drop:focus-within { outline:3px solid var(--accent); outline-offset:2px; }
+  .drop { display:grid; place-items:center; text-align:center; gap:6px; min-height:180px; border:2px dashed var(--line); border-radius:14px; padding:16px; cursor:pointer; overflow:hidden; }
+  .drop input { position:absolute; width:1px; height:1px; opacity:0; }
+  .drop img { max-width:100%; max-height:260px; border-radius:10px; display:none; }
+  .drop.has img { display:block; } .drop.has .hint { display:none; }
+  .hint small { color:var(--muted); display:block; }
+  .swatches { display:flex; flex-wrap:wrap; gap:8px; }
+  .swatches label { margin:0; font-weight:400; }
+  .swatches input { position:absolute; opacity:0; }
+  .swatches span { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border:1.5px solid var(--line); border-radius:999px; cursor:pointer; }
+  .swatches i { width:16px; height:16px; border-radius:50%; border:1px solid rgba(0,0,0,.25); }
+  .swatches input:checked + span { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, transparent); font-weight:600; }
+  .swatches input:focus-visible + span { outline:3px solid var(--accent); outline-offset:2px; }
+  button.go { margin-top:28px; width:100%; font:inherit; font-weight:600; background:var(--accent); color:var(--accent-ink); border:0; border-radius:12px; padding:14px 18px; cursor:pointer; }
+  button.go[disabled] { opacity:.6; cursor:progress; }
+  .msg { margin-top:16px; padding:12px 14px; border-radius:10px; display:none; }
+  .msg.err { display:block; color:var(--bad); border:1.5px solid var(--bad); }
+  .msg.ok { display:block; border:1.5px solid var(--accent); }
+  .trap { position:absolute; left:-9999px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Get your dog in a 3D print</h1>
+  <p class="lead">Send a clear photo, your dog’s name and a color. We’ll review the request and email you a price and a payment link if we can print it.</p>
+
+  <form id="f" novalidate>
+    <label for="customer_name">Your name</label>
+    <input type="text" id="customer_name" name="customer_name" autocomplete="name" required maxlength="80">
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" autocomplete="email" required maxlength="120">
+
+    <label for="dog_name">Dog’s name</label>
+    <input type="text" id="dog_name" name="dog_name" required maxlength="60">
+
+    <label id="clabel">Print color</label>
+    <div class="swatches" role="radiogroup" aria-labelledby="clabel" id="sw"></div>
+
+    <label for="photo">Photo of your dog</label>
+    <label class="drop" id="drop" for="photo" style="font-weight:400;margin:0">
+      <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp,image/heic">
+      <span class="hint">Choose a photo<small>JPG, PNG, WebP or HEIC. A side view with the whole dog works best.</small></span>
+      <img id="prev" alt="Preview of your dog’s photo">
+    </label>
+
+    <label for="notes">Anything else we should know? (optional)</label>
+    <textarea id="notes" name="notes" maxlength="500"></textarea>
+
+    <input class="trap" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+    <button class="go" id="go" type="submit">Send request</button>
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+  </form>
+</main>
+
+<script>
+// Set this to your deployed Worker address (no trailing slash).
+const API = "https://fun3ds-dog-orders.YOUR-SUBDOMAIN.workers.dev";
+
+const COLORS = [["White","#ffffff"],["Black","#111111"],["Brown","#6b4423"],["Tan","#d2b48c"],["Gray","#8a8f98"],["Red","#d62828"],["Blue","#1d6fd8"],["Green","#2a9d4a"],["Yellow","#f4d03f"],["Pink","#f28bb3"],["Orange","#f28c28"],["Purple","#7b4bc4"]];
+const sw = document.getElementById("sw");
+COLORS.forEach(([n, hex], i) => {
+  const l = document.createElement("label");
+  l.innerHTML = `<input type="radio" name="color" value="${n}" ${i === 0 ? "checked" : ""}><span><i style="background:${hex}"></i>${n}</span>`;
+  sw.appendChild(l);
+});
+
+const photo = document.getElementById("photo"), drop = document.getElementById("drop"), prev = document.getElementById("prev");
+let chosen = null;
+
+async function shrink(file) {            // phone photos are huge; resize before upload
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.88));
+    return blob ? new File([blob], "dog.jpg", { type: "image/jpeg" }) : file;
+  } catch { return file; }               // e.g. HEIC in a browser that can’t decode it
+}
+
+photo.addEventListener("change", async () => {
+  const f = photo.files[0]; if (!f) return;
+  chosen = await shrink(f);
+  prev.src = URL.createObjectURL(chosen);
+  drop.classList.add("has");
+});
+
+const f = document.getElementById("f"), go = document.getElementById("go"), msg = document.getElementById("msg");
+function show(kind, text) { msg.className = "msg " + kind; msg.textContent = text; }
+
+f.addEventListener("submit", async (e) => {
+  e.preventDefault(); msg.className = "msg";
+  if (!f.reportValidity()) return;
+  if (!chosen) return show("err", "Please add a photo of your dog.");
+  const fd = new FormData(f);
+  fd.set("photo", chosen, chosen.name);
+  go.disabled = true; go.textContent = "Sending…";
+  try {
+    const r = await fetch(API + "/api/requests", { method: "POST", body: fd });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || "Could not send your request. Please try again.");
+    f.reset(); chosen = null; drop.classList.remove("has");
+    show("ok", "Request sent. We’ll email you once we’ve reviewed it.");
+  } catch (err) {
+    show("err", err.message);
+  } finally {
+    go.disabled = false; go.textContent = "Send request";
+  }
+});
+</script>
+</body>
+</html>
